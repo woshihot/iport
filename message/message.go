@@ -61,7 +61,7 @@ func (m *Message) GetContent() (Content, error) {
 	var content Content
 	err := jsoniter.Unmarshal([]byte(m.Content), &content)
 	if nil != err {
-		log.DF(MessageErrTag, "message get content error = %s\n", err.Error())
+		log.EF(MessageErrTag, "message get content error = %s\n", err.Error())
 		return content, err
 	}
 	return content, nil
@@ -96,7 +96,7 @@ func (c *Content) GetData() (map[string]interface{}, error) {
 	var data map[string]interface{}
 	err := jsoniter.Unmarshal([]byte(c.Data), &data)
 	if nil != err {
-		log.DF(MessageErrTag, "content get data error = %s\n", err.Error())
+		log.EF(MessageErrTag, "content get data error = %s\n", err.Error())
 		return nil, err
 	}
 	return data, nil

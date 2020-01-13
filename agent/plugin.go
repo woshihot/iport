@@ -9,6 +9,8 @@ type Plugin interface {
 	//返回是否完全消费此报文，如是则不再继续执行子层级
 	ExecLocalMessage(m message.Message) bool
 	ExecCloudMessage(m message.Message) bool
+
+	IsAccord(source MessageSource, m message.Message) bool
 }
 
 //每个plugin都有唯一名称

@@ -8,6 +8,7 @@ type HandlerType int
 
 const (
 	Msg HandlerType = iota
+	Payload
 )
 
 var (

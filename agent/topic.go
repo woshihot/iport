@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"github.com/woshihot/go-lib/utils/str"
 	"isesol.com/iport/message"
 	"isesol.com/iport/mqtt"
 )
@@ -97,26 +98,26 @@ func (t *MQTopic) messageHandler(source MessageSource) mqtt.MessageHandler {
 	handler := mqtt.MessageHandler{Topic: t.SubscribeValue(), Qos: t.qos}
 	switch t.handlerType {
 	case Msg:
-		handler.Handler = DefaultMsgHandler(t.Name(),source)
-
+		handler.Handler = DefaultMsgHandler(t.Name(), source)
+	case Payload:
+		handler.Handler = PayloadHandler(t.Name(), source)
 	default:
-		handler.Handler = DefaultMsgHandler(t.Name(),source)
+		handler.Handler = DefaultMsgHandler(t.Name(), source)
 	}
 
 	return handler
 }
 
-func DefaultMsgHandler(topic string, source MessageSource) func(t string, payload []byte) {
+func PayloadHandler(topic string, source MessageSource) func(t string, payload []byte) {
 	return func(t string, payload []byte) {
 		plugins := PM.getPluginsByTopic(topic, source)
-		msg, err := message.NewMessage(&payload)
-		msg.Topic = t
+		msg := &message.Message{
+			Topic:   t,
+			Content: string(payload),
+		}
 		go func() {
 			for _, plugin := range plugins {
-				var execute bool
-				if nil == err && nil != msg {
-					execute = executePlugin(plugin, source, msg)
-				}
+				execute := executePlugin(plugin, source, msg)
 				if execute {
 					break
 				} else {
@@ -127,15 +128,36 @@ func DefaultMsgHandler(topic string, source MessageSource) func(t string, payloa
 	}
 }
 
-func executePlugin(plugin *Plugin, source MessageSource, msg *message.Message) bool {
+func DefaultMsgHandler(topic string, source MessageSource) func(t string, payload []byte) {
+	return func(t string, payload []byte) {
+		plugins := PM.getPluginsByTopic(topic, source)
+		msg, err := message.NewMessage(&payload)
+		if nil == err && nil != msg {
+			msg.Topic = t
+			go func() {
+				for _, plugin := range plugins {
+					execute := executePlugin(plugin, source, msg)
+					if execute {
+						break
+					} else {
+						continue
+					}
+				}
+			}()
+		}
+	}
+}
 
+func executePlugin(plugin *Plugin, source MessageSource, msg *message.Message) bool {
 	var execute bool
 	if nil != msg {
-		switch source {
-		case CLOUD:
-			execute = (*plugin).ExecCloudMessage(*msg)
-		case LOCAL:
-			execute = (*plugin).ExecLocalMessage(*msg)
+		if (*plugin).IsAccord(source, *msg) {
+			switch source {
+			case CLOUD:
+				execute = (*plugin).ExecCloudMessage(*msg)
+			case LOCAL:
+				execute = (*plugin).ExecLocalMessage(*msg)
+			}
 		}
 	}
 	return execute
