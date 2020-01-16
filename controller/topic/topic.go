@@ -8,4 +8,7 @@ const (
 
 	LocalMachineConnectionBegin  = "LocalMachineConnectionBegin"  //设备登录转发到云端
 	LocalBoxConnectionInitialize = "LocalBoxConnectionInitialize" //盒子连接上时发送给云端
+
+	Command = "Command" //指令
+
 )

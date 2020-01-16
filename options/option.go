@@ -13,7 +13,9 @@ func GetOptions() Options {
 }
 
 type Options struct {
-	SendCloud bool
+	SendCloud     bool
+	SendThirdPart bool
+	BoxInfo
 }
 
 var IportOptions Options
@@ -21,6 +23,14 @@ var defaultOptions Options
 
 func init() {
 	defaultOptions = Options{
-		SendCloud: true,
+		SendCloud:     true,
+		SendThirdPart: false,
+		BoxInfo: BoxInfo{
+			BoxName: "",
+		},
 	}
+}
+
+type BoxInfo struct {
+	BoxName string
 }

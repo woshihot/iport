@@ -28,4 +28,18 @@ func init() {
 		//收到盒子的上线事件
 		Plugin(plugin.OnlinePlugin).
 		HandlerType(agent.Msg)
+
+	agent.PM.
+		Cloud().
+		Topic(topic.MessageConfirmationFromAgent).
+		// 盒子发的 0，0 回复
+		Plugin(plugin.OnlinePlugin).
+		HandlerType(agent.Msg)
+
+	agent.PM.
+		Cloud().
+		Topic(topic.Command).
+		// 云端发的 0, 0 回复
+		Plugin(plugin.OnlinePlugin).
+		HandlerType(agent.Msg)
 }

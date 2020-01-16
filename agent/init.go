@@ -11,6 +11,7 @@ var (
 	LocalMqtt    mqtt.MqClient
 	CloudMqtt    mqtt.MqClient
 	CloudGroup   string
+	CloudToken   string
 	CloudChannel string
 )
 
@@ -43,7 +44,7 @@ func LocalInit(broker, clientId, username, pwd string) {
 func CloudInit(broker, clientId, username, pwd, groupName, channel string, willPayload TopicPublish) {
 	PM.Cloud().GroupChannel("", groupName, channel)
 	CloudGroup = groupName
-	CloudChannel = channel
+	CloudToken = pwd
 	willPayload.Group(groupName).Channel(channel)
 
 	connectHandler := PM.Handlers(CLOUD).Create()

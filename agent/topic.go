@@ -4,12 +4,26 @@ import (
 	"github.com/woshihot/go-lib/utils/str"
 	"isesol.com/iport/message"
 	"isesol.com/iport/mqtt"
+	"strings"
 )
 
 type Topic struct {
 	name    string
 	group   string
 	channel string
+}
+
+func ParseTopic(s string) Topic {
+
+	ts := strings.Split(s, "/")
+	if len(ts) == 3 {
+		return Topic{ts[0], ts[1], ts[2]}
+	} else if len(ts) == 2 {
+		return Topic{ts[0], "", ts[1]}
+	} else {
+		return Topic{s, "", ""}
+	}
+
 }
 
 func (t *Topic) SubscribeValue() string {
@@ -49,6 +63,14 @@ func (t *Topic) Relative() *Topic {
 
 func (t *Topic) Name() string {
 	return t.name
+}
+
+func (t *Topic) GetChannel() string {
+	return t.channel
+}
+
+func (t *Topic) GetGroup() string {
+	return t.group
 }
 
 type MQTopic struct {

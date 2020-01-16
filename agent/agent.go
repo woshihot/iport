@@ -1,5 +1,11 @@
 package agent
 
+import (
+	"github.com/woshihot/go-lib/utils/log"
+	"isesol.com/iport/options"
+	"strings"
+)
+
 type MessageSource int
 
 const (
@@ -7,7 +13,7 @@ const (
 	LOCAL
 )
 
-func LocalPublish(publish *TopicPublish) {
+func LocalPublish(publish *TopicPublish, logFlag ...string) {
 
 	go func() {
 		if LocalMqtt.Connected() {
@@ -16,28 +22,37 @@ func LocalPublish(publish *TopicPublish) {
 			if "" == publish.Topic.group {
 				publish.Group("x")
 			}
-			LocalMqtt.Publish(publish.Run())
+			topic, qos, payload := publish.Run()
+			log.DF(flagToTag(logFlag...), "send-cloud topic = %s , msg = %s\n", topic, string(payload))
+			LocalMqtt.Publish(topic, qos, payload)
 		}
 	}()
 
 }
 
-
-func CloudPublish(publish *TopicPublish) {
+func CloudPublish(publish *TopicPublish, logFlag ...string) {
 	go func() {
 		if CloudMqtt.Connected() {
 			cloudPublishLock.Lock()
 			defer cloudPublishLock.Unlock()
 			if "" == publish.Topic.group && "" == publish.Topic.channel {
 				//使用初始化时的group和channel向上层push
-				publish.Group(CloudGroup).Channel(CloudChannel)
+				publish.Group(CloudGroup).Channel(options.GetOptions().BoxName)
 			}
-
-			CloudMqtt.Publish(publish.Run())
+			topic, qos, payload := publish.Run()
+			log.DF(flagToTag(logFlag...), "send-cloud topic = %s , msg = %s\n", topic, string(payload))
+			CloudMqtt.Publish(topic, qos, payload)
 		}
 	}()
 }
 
+func flagToTag(logFlag ...string) string {
+	tag := strings.Join(logFlag, "-")
+	if "" != tag {
+		tag = "[ " + tag + " ]"
+	}
+	return tag
+}
 
 type TopicPublish struct {
 	Topic   *Topic
