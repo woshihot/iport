@@ -11,9 +11,6 @@ const (
 	Payload
 )
 
-var (
-	PM = PluginManager{make(map[string]*Plugin), make(map[string]*MQTopic), make(map[string]*MQTopic)}
-)
 //插件管理类
 type PluginManager struct {
 	plugins map[string]*Plugin
@@ -37,7 +34,7 @@ func (p *PluginManager) getPlugin(key string) (*Plugin, bool) {
 }
 
 //通过topic获取调用的插件
-func (p *PluginManager) getPluginsByTopic(topic string,source MessageSource) []*Plugin {
+func (p *PluginManager) getPluginsByTopic(topic string, source MessageSource) []*Plugin {
 	var result []*Plugin
 	t := p.topicInterface(source)
 
@@ -54,6 +51,7 @@ func (p *PluginManager) getPluginsByTopic(topic string,source MessageSource) []*
 	}
 	return result
 }
+
 //获取local topic-plugin转换接口
 func (p *PluginManager) Local() TopicInterface {
 	if nil != p.l {
@@ -100,7 +98,7 @@ func (t TopicInterface) Topic(name string) *MQTopic {
 	if ok {
 		return topic
 	} else {
-		t[name] = &MQTopic{Topic: Topic{name,"",""}, qos: 0, handlerType: Msg}
+		t[name] = &MQTopic{Topic: Topic{name, "", ""}, qos: 0, handlerType: Msg}
 		return t[name]
 	}
 }
@@ -121,7 +119,6 @@ func (t TopicInterface) GroupChannel(name, group, channel string) TopicInterface
 	return t
 }
 
-
 func (t TopicInterface) Topics(source MessageSource) []mqtt.MessageHandler {
 	var result []mqtt.MessageHandler
 	for _, v := range t {
@@ -129,7 +126,6 @@ func (t TopicInterface) Topics(source MessageSource) []mqtt.MessageHandler {
 	}
 	return result
 }
-
 
 func (t TopicInterface) AddTopic(topic Topic) TopicInterface {
 	changeTopic(t, topic, nil, nil)

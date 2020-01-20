@@ -13,14 +13,14 @@ import (
 )
 
 func init() {
-	p := NewOnlinePlugin()
-	agent.PM.RegisterPlugin(plugin.OnlinePlugin, &p)
+	plugin.RegisterPlugin(plugin.OnlinePlugin, NewOnlinePlugin)
 
 }
 
 // 处理上线报文
 type OnlinePlugin struct {
 	*agent.Super
+	agent agent.Agent
 }
 
 /**
@@ -31,7 +31,7 @@ topic :
 */
 func (p OnlinePlugin) ExecLocalMessage(m message.Message) bool {
 	content := getOnlineContent(m)
-	//更新路由
+	// 更新路由
 	service.UpdateRouting(m.MachineNo, service.Routing{
 		ChannelName:    agent.ParseTopic(m.Topic).GetChannel(),
 		CloudAgentName: "cloudMqtt",
@@ -42,27 +42,27 @@ func (p OnlinePlugin) ExecLocalMessage(m message.Message) bool {
 		Token:          content.Token,
 	})
 
-	//更新心跳
+	// 更新心跳
 	service.UpdateHeartBeat(m.MachineNo)
 
-	//转发云端 或 直接回复
+	// 转发云端 或 直接回复
 	if options.GetOptions().SendCloud {
 		t := topic.LocalMachineConnectionBegin
 		if strings.Contains(m.Topic, topic.LocalBoxConnectionInitialize) {
-			//除盒子外一律转为topic:LocalMachineConnectionBegin
+			// 除盒子外一律转为topic:LocalMachineConnectionBegin
 			t = topic.LocalBoxConnectionInitialize
 		}
 		agent.CloudPublish(agent.TopicPublishCreate(t).SetPayload(m.ToPayload()), plugin.OnlinePlugin)
 	} else {
 		t := topic.MessageConfirmation
 		if !strings.HasPrefix(m.Topic, topic.Message) {
-			//除设备外一律回复topic:MessageConfirmationFromAgent
+			// 除设备外一律回复topic:MessageConfirmationFromAgent
 			t = topic.MessageConfirmationFromAgent
 		}
 		agent.LocalPublish(agent.TopicPublishCreate(t).SetPayload(m.ToPayload()).Channel(m.MachineNo), plugin.OnlinePlugin)
 	}
 
-	//转发第三方
+	// 转发第三方
 	if options.GetOptions().SendThirdPart {
 		service.SendThirdPart(m)
 	}
@@ -85,7 +85,7 @@ func getOnlineContent(m message.Message) onlineContent {
 func (p OnlinePlugin) ExecCloudMessage(m message.Message) bool {
 
 	if options.GetOptions().BoxName == m.MachineNo {
-		//更新自身路由
+		// 更新自身路由
 		service.UpdateRouting(m.MachineNo, service.Routing{
 			ChannelName:    m.MachineNo,
 			CloudAgentName: agent.CloudGroup,
@@ -102,9 +102,11 @@ func (p OnlinePlugin) ExecCloudMessage(m message.Message) bool {
 	return true
 }
 
-//处理本地和云端的0，0报文
-func NewOnlinePlugin() agent.Plugin {
+// 处理本地和云端的0，0报文
+func NewOnlinePlugin(a *agent.Agent, o options.Options) agent.Plugin {
 	p := new(OnlinePlugin)
+	p.agent = a
+	p.Option = o
 	p.TypeOrder(agent.LOCAL, "0", "0")
 	p.TypeOrder(agent.CLOUD, "0", "0")
 	return p

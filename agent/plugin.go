@@ -2,19 +2,22 @@ package agent
 
 import (
 	"isesol.com/iport/message"
+	"isesol.com/iport/options"
 	"strconv"
 )
 
 type Plugin interface {
-	//返回是否完全消费此报文，如是则不再继续执行子层级
+	// 返回是否完全消费此报文，如是则不再继续执行子层级
 	ExecLocalMessage(m message.Message) bool
 	ExecCloudMessage(m message.Message) bool
 
 	IsAccord(source MessageSource, m message.Message) bool
 }
 
-//每个plugin都有唯一名称
+// 每个plugin都有唯一名称
 type Super struct {
+	Option options.Options
+	agent  *Agent
 	allows map[MessageSource][]message.TypeOrder
 }
 
@@ -44,12 +47,16 @@ func (b *Super) TypeOrders(source MessageSource, to ...message.TypeOrder) *Super
 	return b
 }
 
+func (b *Super) Options(o options.Options) *Super {
+	b.Option = o
+	return b
+}
+
 func basicInit(b *Super) {
 	if nil == b {
-		b = &Super{make(map[MessageSource][]message.TypeOrder)}
+		b = &Super{options.NewOption(), nil, make(map[MessageSource][]message.TypeOrder)}
 	} else {
 		if nil == b.allows {
-
 			b.allows = make(map[MessageSource][]message.TypeOrder)
 		}
 	}

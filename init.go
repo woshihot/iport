@@ -1,5 +1,0 @@
-package iport
-
-func Init() {
-
-}

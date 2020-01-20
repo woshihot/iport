@@ -59,6 +59,8 @@ func NewConnectionLostHandler(f func(err error)) mqtt.ConnectionLostHandler {
 	}
 }
 
-func DefaultConnectionLostHandler(err error) {
-	log.EF(HandlerErrTag, "%s mqtt connect lost error=%s\n", "local", err.Error())
+func DefaultConnectionLostHandler(mqttName string) func(err error) {
+	return func(err error) {
+		log.EF(HandlerErrTag, "%s mqtt connect lost error=%s\n", mqttName, err.Error())
+	}
 }
