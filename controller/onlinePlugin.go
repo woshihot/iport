@@ -20,7 +20,6 @@ func init() {
 // 处理上线报文
 type OnlinePlugin struct {
 	*agent.Super
-	agent agent.Agent
 }
 
 /**
@@ -46,24 +45,24 @@ func (p OnlinePlugin) ExecLocalMessage(m message.Message) bool {
 	service.UpdateHeartBeat(m.MachineNo)
 
 	// 转发云端 或 直接回复
-	if options.GetOptions().SendCloud {
+	if p.Option.SendCloud {
 		t := topic.LocalMachineConnectionBegin
 		if strings.Contains(m.Topic, topic.LocalBoxConnectionInitialize) {
 			// 除盒子外一律转为topic:LocalMachineConnectionBegin
 			t = topic.LocalBoxConnectionInitialize
 		}
-		agent.CloudPublish(agent.TopicPublishCreate(t).SetPayload(m.ToPayload()), plugin.OnlinePlugin)
+		p.Agent.CloudPublish(agent.TopicPublishCreate(t).SetPayload(m.ToPayload()), plugin.OnlinePlugin)
 	} else {
 		t := topic.MessageConfirmation
 		if !strings.HasPrefix(m.Topic, topic.Message) {
 			// 除设备外一律回复topic:MessageConfirmationFromAgent
 			t = topic.MessageConfirmationFromAgent
 		}
-		agent.LocalPublish(agent.TopicPublishCreate(t).SetPayload(m.ToPayload()).Channel(m.MachineNo), plugin.OnlinePlugin)
+		p.Agent.LocalPublish(agent.TopicPublishCreate(t).SetPayload(m.ToPayload()).Channel(m.MachineNo), plugin.OnlinePlugin)
 	}
 
 	// 转发第三方
-	if options.GetOptions().SendThirdPart {
+	if p.Option.SendThirdPart {
 		service.SendThirdPart(m)
 	}
 	return true
@@ -83,32 +82,33 @@ func getOnlineContent(m message.Message) onlineContent {
 }
 
 func (p OnlinePlugin) ExecCloudMessage(m message.Message) bool {
-
-	if options.GetOptions().BoxName == m.MachineNo {
+	if p.Option.BoxName == m.MachineNo {
 		// 更新自身路由
 		service.UpdateRouting(m.MachineNo, service.Routing{
 			ChannelName:    m.MachineNo,
-			CloudAgentName: agent.CloudGroup,
+			CloudAgentName: p.Agent.Group,
 			MachineID:      m.MachineNo,
 			MachineType:    agent.BoxMachineType,
 			RegisterDate:   timefmt.CurrTimeGet(),
 			Version:        agent.IportVersion,
-			Token:          agent.CloudToken,
+			Token:          p.Agent.CloudToken,
 		})
+		// 开始心跳
+
 	}
 
 	// 透传
-	agent.LocalPublish(agent.TopicPublishCreate(topic.Command).SetPayload(m.ToPayload()).Channel(m.MachineNo), plugin.OnlinePlugin)
+	p.Agent.LocalPublish(agent.TopicPublishCreate(topic.Command).SetPayload(m.ToPayload()).Channel(m.MachineNo), plugin.OnlinePlugin)
+
 	return true
 }
 
 // 处理本地和云端的0，0报文
 func NewOnlinePlugin(a *agent.Agent, o options.Options) agent.Plugin {
-	p := new(OnlinePlugin)
-	p.agent = a
-	p.Option = o
-	p.TypeOrder(agent.LOCAL, "0", "0")
-	p.TypeOrder(agent.CLOUD, "0", "0")
+	p := OnlinePlugin{&agent.Super{Option: o, Agent: a}}
+	p.TypeOrder(agent.LOCAL, "0", "0").
+		TypeOrder(agent.CLOUD, "0", "0")
+
 	return p
 }
 
@@ -116,4 +116,9 @@ type onlineContent struct {
 	Version     service.RoutingVersion `json:"version"`
 	Token       string                 `json:"token"`
 	MachineType string                 `json:"machineType"`
+}
+
+func (o onlineContent) ToString() string {
+	b, _ := jsoniter.Marshal(o)
+	return string(b)
 }

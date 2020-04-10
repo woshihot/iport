@@ -11,16 +11,14 @@ import (
 func CreatePlugin(a *agent.Agent, o options.Options) {
 
 	pluginMap := plugin.GetPlugins()
-	a.PluginManager = agent.PluginManager{make(map[string]*agent.Plugin), make(map[string]*agent.MQTopic), make(map[string]*agent.MQTopic)}
 	for name, createFunc := range pluginMap {
 		p := createFunc(a, o)
 		a.RegisterPlugin(name, &p)
 	}
-	local(a)
-	cloud(a)
+
 }
 
-func local(a *agent.Agent) {
+func AddLocalControl(a *agent.Agent, group, channel string) {
 	a.Local().
 		Topic(topic.Message).
 		// 收到设备发出的上线事件
@@ -38,9 +36,10 @@ func local(a *agent.Agent) {
 		// 收到盒子的上线事件
 		Plugin(plugin.OnlinePlugin).
 		HandlerType(agent.Msg)
+	a.Local().GroupChannel("", group, channel)
 }
 
-func cloud(a *agent.Agent) {
+func AddCloudControl(a *agent.Agent, group, channel string) {
 	a.Cloud().
 		Topic(topic.MessageConfirmationFromAgent).
 		// 盒子发的 0，0 回复
@@ -52,6 +51,7 @@ func cloud(a *agent.Agent) {
 		// 云端发的 0, 0 回复
 		Plugin(plugin.OnlinePlugin).
 		HandlerType(agent.Msg)
+	a.Cloud().GroupChannel("", group, channel)
 }
 
 func OfflinePublish(group, channel string) agent.TopicPublish {
@@ -59,12 +59,31 @@ func OfflinePublish(group, channel string) agent.TopicPublish {
 		Channel(channel).
 		Group(group).
 		SetPayload(
-			message.Message{
+			(&message.Message{
 				MachineNo: channel,
 				Encode:    false,
 				ID:        "",
 				Content:   "",
 				Type:      -1,
 				Order:     -1,
-			}.ToPayload())
+			}).ToPayload())
+}
+
+func OnlinePublish(token, group, channel string) agent.TopicPublish {
+	return *agent.TopicPublishCreate(topic.LocalBoxConnectionInitialize).
+		Channel(channel).
+		Group(group).
+		SetPayload(
+			(&message.Message{
+				MachineNo: channel,
+				Encode:    false,
+				ID:        "",
+				Content: onlineContent{
+					Token:       token,
+					Version:     agent.IportVersion,
+					MachineType: agent.BoxMachineType,
+				}.ToString(),
+				Type:  0,
+				Order: 0,
+			}).ToPayload())
 }

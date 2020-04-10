@@ -11,14 +11,20 @@ const (
 	Payload
 )
 
-//插件管理类
+// 插件管理类
 type PluginManager struct {
 	plugins map[string]*Plugin
 	l       TopicInterface
 	c       TopicInterface
 }
 
-//注册插件
+func (p *PluginManager) Initial() {
+	p.plugins = make(map[string]*Plugin)
+	p.l = make(map[string]*MQTopic)
+	p.c = make(map[string]*MQTopic)
+}
+
+// 注册插件
 func (p *PluginManager) RegisterPlugin(pluginName string, plugin *Plugin) *PluginManager {
 	if nil == p.plugins {
 		p.plugins = make(map[string]*Plugin)
@@ -27,13 +33,13 @@ func (p *PluginManager) RegisterPlugin(pluginName string, plugin *Plugin) *Plugi
 	return p
 }
 
-//获取插件
+// 获取插件
 func (p *PluginManager) getPlugin(key string) (*Plugin, bool) {
 	v, ok := p.plugins[key]
 	return v, ok
 }
 
-//通过topic获取调用的插件
+// 通过topic获取调用的插件
 func (p *PluginManager) getPluginsByTopic(topic string, source MessageSource) []*Plugin {
 	var result []*Plugin
 	t := p.topicInterface(source)
@@ -52,7 +58,7 @@ func (p *PluginManager) getPluginsByTopic(topic string, source MessageSource) []
 	return result
 }
 
-//获取local topic-plugin转换接口
+// 获取local topic-plugin转换接口
 func (p *PluginManager) Local() TopicInterface {
 	if nil != p.l {
 		return p.l
@@ -61,7 +67,7 @@ func (p *PluginManager) Local() TopicInterface {
 	return p.l
 }
 
-//获取cloud topic-plugin转换接口
+// 获取cloud topic-plugin转换接口
 func (p *PluginManager) Cloud() TopicInterface {
 	if nil != p.c {
 		return p.c
@@ -82,9 +88,9 @@ func (p *PluginManager) topicInterface(source MessageSource) TopicInterface {
 	return t
 }
 
-//将注册信息转换为mqtt的订阅handler
+// 将注册信息转换为mqtt的订阅handler
 func (p *PluginManager) Handlers(source MessageSource) *mqtt.OnConnectHandler {
-	msgHandler := p.topicInterface(source).Topics(source)
+	msgHandler := p.topicInterface(source).Topics(source, p)
 	connectHandler := mqtt.NewOnConnectHandler()
 	connectHandler.Handler(msgHandler...)
 
@@ -119,10 +125,11 @@ func (t TopicInterface) GroupChannel(name, group, channel string) TopicInterface
 	return t
 }
 
-func (t TopicInterface) Topics(source MessageSource) []mqtt.MessageHandler {
+func (t TopicInterface) Topics(source MessageSource, p *PluginManager) []mqtt.MessageHandler {
 	var result []mqtt.MessageHandler
 	for _, v := range t {
-		result = append(result, v.messageHandler(source))
+
+		result = append(result, v.messageHandler(source, p.getPluginsByTopic(v.Name(), source)))
 	}
 	return result
 }

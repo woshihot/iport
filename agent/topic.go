@@ -13,15 +13,15 @@ type Topic struct {
 	channel string
 }
 
-func ParseTopic(s string) Topic {
+func ParseTopic(s string) *Topic {
 
 	ts := strings.Split(s, "/")
 	if len(ts) == 3 {
-		return Topic{ts[0], ts[1], ts[2]}
+		return &Topic{ts[0], ts[1], ts[2]}
 	} else if len(ts) == 2 {
-		return Topic{ts[0], "", ts[1]}
+		return &Topic{ts[0], "", ts[1]}
 	} else {
-		return Topic{s, "", ""}
+		return &Topic{s, "", ""}
 	}
 
 }
@@ -116,30 +116,29 @@ func (t *MQTopic) HandlerType(handlerType HandlerType) *MQTopic {
 	return t
 }
 
-func (t *MQTopic) messageHandler(source MessageSource) mqtt.MessageHandler {
+func (t *MQTopic) messageHandler(source MessageSource, plugins []*Plugin) mqtt.MessageHandler {
 	handler := mqtt.MessageHandler{Topic: t.SubscribeValue(), Qos: t.qos}
 	switch t.handlerType {
 	case Msg:
-		handler.Handler = DefaultMsgHandler(t.Name(), source)
+		handler.Handler = DefaultMsgHandler(t.Name(), source, plugins)
 	case Payload:
-		handler.Handler = PayloadHandler(t.Name(), source)
+		handler.Handler = PayloadHandler(t.Name(), source, plugins)
 	default:
-		handler.Handler = DefaultMsgHandler(t.Name(), source)
+		handler.Handler = DefaultMsgHandler(t.Name(), source, plugins)
 	}
 
 	return handler
 }
 
-func PayloadHandler(topic string, source MessageSource) func(t string, payload []byte) {
+func PayloadHandler(topic string, source MessageSource, plugins []*Plugin) func(t string, payload []byte) {
 	return func(t string, payload []byte) {
-		plugins := PM.getPluginsByTopic(topic, source)
 		msg := &message.Message{
 			Topic:   t,
 			Content: string(payload),
 		}
 		go func() {
 			for _, plugin := range plugins {
-				execute := executePlugin(plugin, source, msg)
+				execute := executePlugin(plugin, source, topic, msg)
 				if execute {
 					break
 				} else {
@@ -150,15 +149,14 @@ func PayloadHandler(topic string, source MessageSource) func(t string, payload [
 	}
 }
 
-func DefaultMsgHandler(topic string, source MessageSource) func(t string, payload []byte) {
+func DefaultMsgHandler(topic string, source MessageSource, plugins []*Plugin) func(t string, payload []byte) {
 	return func(t string, payload []byte) {
-		plugins := PM.getPluginsByTopic(topic, source)
 		msg, err := message.NewMessage(&payload)
 		if nil == err && nil != msg {
 			msg.Topic = t
 			go func() {
 				for _, plugin := range plugins {
-					execute := executePlugin(plugin, source, msg)
+					execute := executePlugin(plugin, source, topic, msg)
 					if execute {
 						break
 					} else {
@@ -170,10 +168,10 @@ func DefaultMsgHandler(topic string, source MessageSource) func(t string, payloa
 	}
 }
 
-func executePlugin(plugin *Plugin, source MessageSource, msg *message.Message) bool {
+func executePlugin(plugin *Plugin, source MessageSource, topic string, msg *message.Message) bool {
 	var execute bool
 	if nil != msg {
-		if (*plugin).IsAccord(source, *msg) {
+		if (*plugin).IsAccord(source, topic, *msg) {
 			switch source {
 			case CLOUD:
 				execute = (*plugin).ExecCloudMessage(*msg)

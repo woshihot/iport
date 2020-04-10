@@ -8,15 +8,17 @@ var defaultOptions Options
 func init() {
 	defaultOptions = Options{
 		OperationInfo: OperationInfo{
-			SendCloud:                   true,
-			SendThirdPart:               false,
-			ThreeCodeMaxReconnectTimes:  3,
-			ThreeCodeReconnectFrequency: 5 * time.Second,
+			SendCloud:               true,
+			SendThirdPart:           false,
+			ThreeCodeMaxRetryTimes:  3,
+			ThreeCodeRetryFrequency: 5 * time.Second,
+			MqttRetryFrequency:      5 * time.Second,
 		},
 		AgentInfo: AgentInfo{
-			ApiHost:       "https://api.isesol.com",
-			CloudMqttAddr: "mqttAgent.isesol.com:1883",
+			ApiHost:       "http://10.1.60.199",
+			CloudMqttAddr: "tcp://10.1.60.199:1883",
 			ApiServer:     "/agentServer",
+			LocalMqttAddr: "tcp://127.0.0.1:1883",
 		},
 		BoxInfo: BoxInfo{
 			BoxName:    "",

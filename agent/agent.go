@@ -17,11 +17,20 @@ const (
 	LOCAL
 )
 
+func (m MessageSource) ToString() string {
+	if CLOUD == m {
+		return "cloud"
+	} else {
+		return "local"
+	}
+}
+
 var (
 	localPublishLock = new(sync.Mutex)
 	cloudPublishLock = new(sync.Mutex)
 
 	TagError = "[agent-error]"
+	TagDebug = "[agent-debug]"
 )
 
 func flagToTag(logFlag ...string) string {
@@ -75,26 +84,36 @@ type Agent struct {
 	PluginManager
 	agentConnectInfo
 }
+
+func Initial(info options.BoxInfo) *Agent {
+	a := &Agent{
+		boxInfo: info,
+	}
+	a.Initial()
+	return a
+}
+
 type agentConnectInfo struct {
 	CloudToken string
 	Group      string
 }
 
-func (a Agent) IsLogged() bool {
+func (a *Agent) IsLogged() bool {
 	return a.status >= agentLogged
 }
 
-func (a Agent) IsConnected() bool {
+func (a *Agent) IsConnected() bool {
 	return a.status >= agentConnected
 }
 
-func (a Agent) Logged(token, group string) {
+func (a *Agent) Logged(token, group string) {
 	a.CloudToken = token
 	a.Group = group
 	a.status = agentLogged
+	log.DF(TagDebug, "%s login ,token =%s ,group =%s\n", a.boxInfo.BoxName, token, group)
 }
 
-func (a Agent) LocalConnect(broker string, connectHandler mqtt.OnConnectHandler, reConnectFrequency time.Duration) {
+func (a *Agent) LocalConnect(broker string, connectHandler mqtt.OnConnectHandler, reConnectFrequency time.Duration) {
 	connectFunc := func() {
 		cHandler := connectHandler.Create()
 		connectionLostHandler := mqtt.NewConnectionLostHandler(mqtt.DefaultConnectionLostHandler("local"))
@@ -110,8 +129,9 @@ func (a Agent) LocalConnect(broker string, connectHandler mqtt.OnConnectHandler,
 		err := client.Connect()
 		if nil == err {
 			a.localClient = client
+			log.DF(TagDebug, "local mqtt connect\n")
 		} else {
-			log.EF(TagError, "%s\n", err.Error())
+			log.EF(TagError, "local connect error = %s\n", err.Error())
 		}
 	}
 	check := func() bool {
@@ -120,7 +140,7 @@ func (a Agent) LocalConnect(broker string, connectHandler mqtt.OnConnectHandler,
 	do.DoSthUntil(connectFunc, reConnectFrequency, check)
 }
 
-func (a Agent) CloudConnect(broker, boxName string, connectHandler mqtt.OnConnectHandler, willPayload TopicPublish, reConnectFrequency time.Duration) {
+func (a *Agent) CloudConnect(broker, boxName string, connectHandler *mqtt.OnConnectHandler, willPayload TopicPublish, reConnectFrequency time.Duration) {
 	connectFunc := func() {
 		cHandler := connectHandler.Create()
 		willPayload.Group(a.Group).Channel(boxName)
@@ -138,8 +158,9 @@ func (a Agent) CloudConnect(broker, boxName string, connectHandler mqtt.OnConnec
 		if nil == err {
 			a.cloudClient = client
 			a.status = agentConnected
+			log.DF(TagDebug, "cloud mqtt connect\n")
 		} else {
-			log.EF(TagError+"%s\n", err.Error())
+			log.EF(TagError, "cloud connect error = %s\n", err.Error())
 		}
 	}
 
@@ -150,7 +171,7 @@ func (a Agent) CloudConnect(broker, boxName string, connectHandler mqtt.OnConnec
 
 }
 
-func (a Agent) LocalPublish(publish *TopicPublish, logFlag ...string) {
+func (a *Agent) LocalPublish(publish *TopicPublish, logFlag ...string) {
 	go func() {
 		if a.localClient.Connected() {
 			localPublishLock.Lock()
@@ -171,7 +192,7 @@ func (a Agent) LocalPublish(publish *TopicPublish, logFlag ...string) {
 	}()
 }
 
-func (a Agent) CloudPublish(publish *TopicPublish, logFlag ...string) {
+func (a *Agent) CloudPublish(publish *TopicPublish, logFlag ...string) {
 	go func() {
 		if a.cloudClient.Connected() {
 			cloudPublishLock.Lock()

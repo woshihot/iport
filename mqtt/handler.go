@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/woshihot/go-lib/utils/log"
 )
@@ -38,6 +39,7 @@ func (oc *OnConnectHandler) Create() mqtt.OnConnectHandler {
 	return func(client mqtt.Client) {
 		for _, handler := range oc.msgHandlers {
 			var callback mqtt.MessageHandler = func(client mqtt.Client, message mqtt.Message) {
+				fmt.Printf("topic = %s,msg=%s\n", message.Topic(), message.Payload())
 				go handler.Handler(message.Topic(), message.Payload())
 			}
 			token := client.Subscribe(handler.Topic, handler.Qos, callback)
